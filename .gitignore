@@ -1,0 +1,8 @@
+.env
+storage/
+temp_uploads/
+runs/
+dataset/
+__pycache__/
+.venv/
+*.pt

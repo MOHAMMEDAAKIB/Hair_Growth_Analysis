@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+ultralytics
+opencv-python
+langgraph
+langchain
+anthropic
+pillow
+python-multipart
+python-dotenv
+groq

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Head Detection</title>
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <style>
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            margin: 24px;
+            line-height: 1.4;
+        }
+
+        form {
+            margin-bottom: 16px;
+        }
+
+        #status {
+            margin: 10px 0 14px;
+            font-weight: 600;
+        }
+
+        #preview {
+            max-width: 100%;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            display: none;
+        }
+    </style>
+
+</head>
+<body>
+    <h1>Head Detection API</h1>
+    <p>Welcome to the Head Detection API!</p>
+    <p>You can use this API to detect heads in images. To get started, simply upload an image using the form below, and the API will return the number of heads detected in the image.</p>
+    <!-- Form to upload an image for head detection -->
+    <form action="http://127.0.0.1:8000/detect" method="post" enctype="multipart/form-data">
+        <label for="image">Upload an image:</label>
+        <input type="file" id="image" name="file" accept="image/*" required>
+        <button type="submit">Detect Heads</button>
+    </form>
+
+    <p id="status"></p>
+    <canvas id="preview"></canvas>
+
+    <script>
+        // If this page is served from a static server, send requests to FastAPI on port 8000.
+        const apiBase = window.location.port === '8000'
+            ? window.location.origin
+            : 'http://127.0.0.1:8000';
+        const form = document.querySelector('form');
+        const imageInput = document.querySelector('#image');
+        const statusText = document.querySelector('#status');
+        const previewCanvas = document.querySelector('#preview');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const imageFile = imageInput.files[0];
+            if (!imageFile) {
+                statusText.textContent = 'Please choose an image first.';
+                return;
+            }
+
+            const formData = new FormData(event.target);
+            statusText.textContent = 'Detecting heads...';
+
+            try {
+                const response = await fetch(`${apiBase}/detect`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Request failed (${response.status}): ${errorText || 'No response body'}`);
+                }
+
+                const result = await response.json();
+                await drawDetections(imageFile, result.heads || []);
+                statusText.textContent = `Detected ${result.head_count} heads in the image.`;
+            } catch (error) {
+                statusText.textContent = error.message;
+            }
+        });
+
+        async function drawDetections(file, heads) {
+            const imageUrl = URL.createObjectURL(file);
+            const image = new Image();
+
+            await new Promise((resolve, reject) => {
+                image.onload = resolve;
+                image.onerror = reject;
+                image.src = imageUrl;
+            });
+
+            previewCanvas.width = image.naturalWidth;
+            previewCanvas.height = image.naturalHeight;
+            previewCanvas.style.display = 'block';
+
+            const ctx = previewCanvas.getContext('2d');
+            ctx.drawImage(image, 0, 0);
+
+            const lineWidth = Math.max(2, Math.round(image.naturalWidth / 320));
+            ctx.lineWidth = lineWidth;
+            ctx.strokeStyle = '#00b341';
+            ctx.fillStyle = '#00b341';
+            ctx.font = `${Math.max(14, Math.round(image.naturalWidth / 45))}px Segoe UI`;
+
+            for (const head of heads) {
+                const { x1, y1, x2, y2 } = head.bbox;
+                const width = x2 - x1;
+                const height = y2 - y1;
+
+                ctx.strokeRect(x1, y1, width, height);
+
+                const label = `${Math.round((head.confidence || 0) * 100)}%`;
+                const labelY = Math.max(18, y1 - 6);
+                ctx.fillRect(x1, labelY - 18, Math.max(38, label.length * 10), 20);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillText(label, x1 + 6, labelY - 3);
+                ctx.fillStyle = '#00b341';
+            }
+
+            URL.revokeObjectURL(imageUrl);
+        }
+
+        // Optional: main API endpoint: http://127.0.0.1:8000 
+    </script>
+</body>
+</html>
