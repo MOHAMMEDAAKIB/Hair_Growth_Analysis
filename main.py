@@ -6,21 +6,33 @@ import os
 from graph.flow import hair_graph
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from auth.routes import router as auth_router
+from fastapi.responses import FileResponse
+
 
 app = FastAPI(title="Hair Growth Analysis API 💇")
+app.include_router(auth_router)
 
 UPLOAD_TEMP = "temp_uploads"
 os.makedirs(UPLOAD_TEMP, exist_ok=True)
 
+#@app.get("/")
+#def home():
+#    return FileResponse("index.html")
+
+@app.get("/user/register")
+def register_page():
+    return FileResponse("templates/register.html")
+
 @app.get("/")
-def home():
-    return FileResponse("index.html")
+def login_page():
+    return FileResponse("templates/login.html")
 
-@app.get("/ui")
-def serve_ui():
-    return FileResponse("templates/index.html")
+@app.get("/ui/dashboard")
+def dashboard_page():
+    return FileResponse("templates/dashboard.html")
 
-@app.post("/first-image")
+@app.post("/register")
 async def register_first_image(
     user_id: str = Form(...),
     file: UploadFile = File(...)
@@ -36,7 +48,7 @@ async def register_first_image(
         "image_path": temp_path,
         "is_first_image": True,
         "head_detected": False,
-        "bbox": None,              # ← இது add பண்ணு
+        "bbox": None,              
         "head_crop_path": None,
         "confidence": None,
         "previous_image_path": None,

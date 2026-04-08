@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Hair Growth Analysis</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; min-height: 100vh; }
+  .layout { display: grid; grid-template-columns: 230px 1fr; min-height: 100vh; }
+  .sidebar { background: #fff; border-right: 1px solid #eee; padding: 1.5rem; display: flex; flex-direction: column; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 2rem; }
+  .brand-icon { width: 36px; height: 36px; background: #e8f0fe; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .brand h1 { font-size: 14px; font-weight: 600; color: #1a1a1a; }
+  .user-card { background: #f9f9f9; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #1d4ed8; flex-shrink: 0; }
+  .user-card p { font-size: 13px; font-weight: 600; color: #1a1a1a; }
+  .user-card span { font-size: 11px; color: #888; }
+  .nav-label { font-size: 10px; color: #bbb; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; margin-top: 4px; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 10px; font-size: 13px; color: #666; cursor: pointer; margin-bottom: 2px; transition: background 0.2s; text-decoration: none; }
+  .nav-item:hover { background: #f5f5f5; color: #1a1a1a; }
+  .nav-item.active { background: #f0f0ff; color: #4f46e5; font-weight: 600; }
+  .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+  .nav-spacer { flex: 1; }
+  .main { padding: 2rem; overflow-y: auto; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+  .topbar h2 { font-size: 20px; font-weight: 600; color: #1a1a1a; }
+  .topbar span { font-size: 13px; color: #888; }
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+  .metric { background: #fff; border: 1px solid #eee; border-radius: 14px; padding: 1.25rem; }
+  .metric p { font-size: 12px; color: #888; margin-bottom: 8px; font-weight: 500; }
+  .metric h3 { font-size: 28px; font-weight: 600; color: #1a1a1a; }
+  .metric small { font-size: 11px; color: #22c55e; font-weight: 500; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+  .card { background: #fff; border: 1px solid #eee; border-radius: 14px; padding: 1.25rem; }
+  .card-title { font-size: 14px; font-weight: 600; color: #1a1a1a; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+  .upload-zone { border: 1.5px dashed #ddd; border-radius: 10px; padding: 1.5rem; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; }
+  .upload-zone:hover { border-color: #4f46e5; background: #f8f7ff; }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .upload-zone .icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-zone p { font-size: 13px; color: #888; }
+  .upload-zone small { font-size: 11px; color: #bbb; }
+  .upload-zone .filename { font-size: 12px; color: #4f46e5; margin-top: 6px; font-weight: 500; }
+  .preview-wrap { margin-top: 10px; display: none; }
+  .preview-wrap img { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; }
+  .upload-label { font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .btn-analyze { width: 100%; padding: 11px; background: #1a1a1a; color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 1rem; transition: opacity 0.2s; }
+  .btn-analyze:hover { opacity: 0.85; }
+  .btn-analyze:disabled { background: #ccc; cursor: not-allowed; }
+  .result-card { background: #fff; border: 1px solid #eee; border-radius: 14px; padding: 1.25rem; margin-bottom: 1.5rem; }
+  .result-empty { text-align: center; padding: 2rem; color: #bbb; font-size: 13px; }
+  .result-empty .icon { font-size: 32px; margin-bottom: 8px; }
+  .result-content { display: none; }
+  .result-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #eee; }
+  .result-header h3 { font-size: 15px; font-weight: 600; color: #1a1a1a; }
+  .growth-badge { font-size: 13px; font-weight: 600; padding: 5px 14px; border-radius: 20px; background: #dcfce7; color: #15803d; }
+  .analysis-text { font-size: 13px; color: #555; line-height: 1.8; white-space: pre-wrap; }
+  .images-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 1rem; }
+  .img-box p { font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .img-box img { width: 100%; height: 140px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; }
+  .history-card { background: #fff; border: 1px solid #eee; border-radius: 14px; padding: 1.25rem; }
+  .history-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+  .history-item:last-child { border-bottom: none; }
+  .h-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; flex-shrink: 0; }
+  .h-info { flex: 1; }
+  .h-info p { font-size: 13px; color: #1a1a1a; font-weight: 500; }
+  .h-info span { font-size: 11px; color: #888; }
+  .h-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; background: #dcfce7; color: #15803d; font-weight: 600; }
+  .loading-bar { display: none; background: #f5f5f5; border-radius: 8px; padding: 12px; font-size: 13px; color: #888; text-align: center; margin-top: 8px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #ddd; border-top-color: #4f46e5; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 500; color: #fff; display: none; z-index: 999; }
+  .toast.success { background: #22c55e; }
+  .toast.error { background: #ef4444; }
+  .confidence-bar { margin-top: 8px; }
+  .confidence-bar p { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .bar-bg { background: #f0f0f0; border-radius: 20px; height: 6px; }
+  .bar-fill { background: #4f46e5; border-radius: 20px; height: 6px; transition: width 0.8s ease; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="brand">
+      <div class="brand-icon"></div>
+      <h1>Hair Analysis</h1>
+    </div>
+
+    <div class="user-card">
+      <div class="avatar" id="user-avatar">JD</div>
+      <div>
+        <p id="user-name">Loading...</p>
+        <span id="user-email">...</span>
+      </div>
+    </div>
+
+    <div class="nav-label">Menu</div>
+    <a href="#" class="nav-item active"><span class="nav-icon">⊞</span> Dashboard</a>
+    <a href="#register-section" class="nav-item" onclick="showSection('register-section')"><span class="nav-icon">📸</span> Register image</a>
+    <a href="#analyze-section" class="nav-item" onclick="showSection('analyze-section')"><span class="nav-icon">🔬</span> Analyze growth</a>
+    <a href="#history-section" class="nav-item" onclick="showSection('history-section')"><span class="nav-icon">📊</span> History</a>
+
+    <div class="nav-spacer"></div>
+    <a href="login.html" class="nav-item" onclick="logout()"><span class="nav-icon">→</span> Sign out</a>
+  </div>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <h2>Dashboard</h2>
+      <span id="today-date"></span>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics">
+      <div class="metric">
+        <p>Total scans</p>
+        <h3 id="total-scans">0</h3>
+        <small>Images uploaded</small>
+      </div>
+      <div class="metric">
+        <p>Latest growth</p>
+        <h3 id="latest-growth">—</h3>
+        <small>vs previous scan</small>
+      </div>
+      <div class="metric">
+        <p>Last analysis</p>
+        <h3 id="last-analysis">—</h3>
+        <small>Days ago</small>
+      </div>
+    </div>
+
+    <!-- Register Section -->
+    <section id="register-section">
+    <div id="register-section">
+      <div class="card" style="margin-bottom:1.5rem">
+        <div class="card-title"> Register first image</div>
+        <div class="upload-label">Your head photo</div>
+        <div class="upload-zone" id="reg-zone">
+          <input type="file" accept="image/*" onchange="handleUpload(this,'reg')">
+          <div class="icon"></div>
+          <p>Click to upload your photo</p>
+          <small>JPG, PNG — clear head photo</small>
+          <div class="filename" id="reg-filename"></div>
+        </div>
+        <div class="preview-wrap" id="reg-preview-wrap">
+          <img id="reg-preview-img">
+        </div>
+        <div class="loading-bar" id="reg-loading">
+          <span class="spinner"></span> Detecting head and saving...
+        </div>
+        <button class="btn-analyze" onclick="registerImage()" id="reg-btn">
+          Save first image
+        </button>
+      </div>
+    </div>
+    </section>
+
+    <!-- Analyze Section -->
+    <div id="analyze-section">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-title">📷 Before</div>
+          <div class="upload-label">First image (auto-loaded)</div>
+          <div style="background:#f9f9f9;border-radius:10px;height:130px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#bbb" id="before-placeholder">
+            Register your first image
+          </div>
+          <img id="before-img" style="display:none;width:100%;height:130px;object-fit:cover;border-radius:10px;border:1px solid #eee">
+        </div>
+        <div class="card">
+          <div class="card-title">📷 After</div>
+          <div class="upload-label">New image</div>
+          <div class="upload-zone">
+            <input type="file" accept="image/*" onchange="handleUpload(this,'after')">
+            <div class="icon">📷</div>
+            <p>Upload new photo</p>
+            <small>Latest head photo</small>
+            <div class="filename" id="after-filename"></div>
+          </div>
+          <div class="preview-wrap" id="after-preview-wrap">
+            <img id="after-preview-img">
+          </div>
+        </div>
+      </div>
+
+      <div class="loading-bar" id="ana-loading">
+        <span class="spinner"></span> AI analyzing hair growth...
+      </div>
+
+      <button class="btn-analyze" onclick="analyzeHair()" id="ana-btn" style="margin-bottom:1.5rem">
+        🔬 Run hair growth analysis
+      </button>
+    </div>
+
+    <!-- Result -->
+    <div class="result-card">
+      <div class="card-title">📊 Analysis result</div>
+      <div class="result-empty" id="result-empty">
+        <div class="icon">🔍</div>
+        <p>No analysis yet — upload images and run analysis</p>
+      </div>
+      <div class="result-content" id="result-content">
+        <div class="result-header">
+          <h3>Hair growth analysis</h3>
+          <span class="growth-badge" id="growth-badge">Analyzing...</span>
+        </div>
+        <div class="confidence-bar">
+          <p>Detection confidence</p>
+          <div class="bar-bg"><div class="bar-fill" id="conf-bar" style="width:0%"></div></div>
+        </div>
+        <div class="images-compare" id="compare-images" style="display:none">
+          <div class="img-box">
+            <p>Before</p>
+            <img id="result-before">
+          </div>
+          <div class="img-box">
+            <p>After</p>
+            <img id="result-after">
+          </div>
+        </div>
+        <p class="analysis-text" id="analysis-text" style="margin-top:1rem"></p>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="history-card">
+      <div class="card-title">🕐 Analysis history</div>
+      <div id="history-list">
+        <div style="text-align:center;padding:1.5rem;font-size:13px;color:#bbb">No history yet</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://127.0.0.1:8000';
+let regFile = null;
+let afterFile = null;
+let history = JSON.parse(localStorage.getItem('hair_history') || '[]');
+
+// Init
+window.onload = () => {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  if (!user.name) { window.location.href = 'login.html'; return; }
+
+  document.getElementById('user-name').textContent = user.name;
+  document.getElementById('user-email').textContent = user.email;
+  const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
+  document.getElementById('user-avatar').textContent = initials;
+  document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  document.getElementById('total-scans').textContent = history.length;
+
+  renderHistory();
+};
+
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type}`;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3500);
+}
+
+function handleUpload(input, type) {
+  const file = input.files[0];
+  if (!file) return;
+
+  if (type === 'reg') {
+    regFile = file;
+    document.getElementById('reg-filename').textContent = file.name;
+    const wrap = document.getElementById('reg-preview-wrap');
+    const img  = document.getElementById('reg-preview-img');
+    img.src = URL.createObjectURL(file);
+    wrap.style.display = 'block';
+  } else {
+    afterFile = file;
+    document.getElementById('after-filename').textContent = file.name;
+    const wrap = document.getElementById('after-preview-wrap');
+    const img  = document.getElementById('after-preview-img');
+    img.src = URL.createObjectURL(file);
+    wrap.style.display = 'block';
+  }
+}
+
+async function registerImage() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  if (!user.email) { showToast('Login required!', 'error'); return; }
+  if (!regFile) { showToast('Please upload a photo!', 'error'); return; }
+
+  const userId = user.email.split('@')[0];
+  const formData = new FormData();
+  formData.append('user_id', userId);
+  formData.append('file', regFile);
+
+  document.getElementById('reg-btn').disabled = true;
+  document.getElementById('reg-loading').style.display = 'block';
+
+  try {
+    const res  = await fetch(`${API}/register`, { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (res.ok) {
+      showToast('First image saved! ✓', 'success');
+      document.getElementById('before-placeholder').style.display = 'none';
+      document.getElementById('before-img').src = URL.createObjectURL(regFile);
+      document.getElementById('before-img').style.display = 'block';
+      history.push({ type:'register', date: new Date().toLocaleDateString(), confidence: data.confidence });
+      localStorage.setItem('hair_history', JSON.stringify(history));
+      document.getElementById('total-scans').textContent = history.length;
+      renderHistory();
+    } else {
+      showToast(data.detail || 'Failed!', 'error');
+    }
+  } catch (e) {
+    showToast('Cannot connect to API!', 'error');
+  }
+
+  document.getElementById('reg-btn').disabled = false;
+  document.getElementById('reg-loading').style.display = 'none';
+}
+
+async function analyzeHair() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  if (!user.email) { showToast('Login required!', 'error'); return; }
+  if (!afterFile) { showToast('Upload new photo!', 'error'); return; }
+
+  const userId = user.email.split('@')[0];
+  const formData = new FormData();
+  formData.append('user_id', userId);
+  formData.append('file', afterFile);
+
+  document.getElementById('ana-btn').disabled = true;
+  document.getElementById('ana-loading').style.display = 'block';
+
+  try {
+    const res  = await fetch(`${API}/analyze`, { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (res.ok) {
+      document.getElementById('result-empty').style.display = 'none';
+      document.getElementById('result-content').style.display = 'block';
+      document.getElementById('growth-badge').textContent = 'Analysis complete ✓';
+      document.getElementById('analysis-text').textContent = data.hair_analysis;
+      document.getElementById('conf-bar').style.width = `${Math.round(data.confidence * 100)}%`;
+
+      history.push({
+        type: 'analysis',
+        date: new Date().toLocaleDateString(),
+        confidence: data.confidence,
+        summary: data.hair_analysis?.substring(0, 60) + '...'
+      });
+      localStorage.setItem('hair_history', JSON.stringify(history));
+      document.getElementById('total-scans').textContent = history.length;
+      document.getElementById('last-analysis').textContent = '0d';
+      renderHistory();
+      showToast('Analysis complete! 🎉', 'success');
+    } else {
+      showToast(data.detail || 'Analysis failed!', 'error');
+    }
+  } catch (e) {
+    showToast('Cannot connect to API!', 'error');
+  }
+
+  document.getElementById('ana-btn').disabled = false;
+  document.getElementById('ana-loading').style.display = 'none';
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (history.length === 0) {
+    list.innerHTML = '<div style="text-align:center;padding:1.5rem;font-size:13px;color:#bbb">No history yet</div>';
+    return;
+  }
+  list.innerHTML = history.slice().reverse().map((h, i) => `
+    <div class="history-item">
+      <div class="h-dot" style="background:${h.type==='analysis'?'#22c55e':'#93c5fd'}"></div>
+      <div class="h-info">
+        <p>${h.type === 'analysis' ? 'Hair analysis' : 'Image registered'} — ${h.date}</p>
+        <span>${h.summary || 'Head detected successfully'}</span>
+      </div>
+      <span class="h-badge">${h.type==='analysis' ? '✓ Done' : '📸 Saved'}</span>
+    </div>
+  `).join('');
+}
+
+function showSection(id) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  event.target.closest('.nav-item').classList.add('active');
+}
+
+function logout() {
+  localStorage.removeItem('user');
+  window.location.href = 'login.html';
+}
+</script>
+</body>
+</html>
