@@ -23,6 +23,8 @@
   .nav-icon { font-size: 15px; width: 18px; text-align: center; }
   .nav-spacer { flex: 1; }
   .main { padding: 2rem; overflow-y: auto; }
+  .content-section { display: none; }
+  .content-section.active { display: block; }
   .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
   .topbar h2 { font-size: 20px; font-weight: 600; color: #1a1a1a; }
   .topbar span { font-size: 13px; color: #888; }
@@ -99,10 +101,10 @@
     </div>
 
     <div class="nav-label">Menu</div>
-    <a href="#" class="nav-item active"><span class="nav-icon">⊞</span> Dashboard</a>
-    <a href="#register-section" class="nav-item" onclick="showSection('register-section')"><span class="nav-icon">📸</span> Register image</a>
-    <a href="#analyze-section" class="nav-item" onclick="showSection('analyze-section')"><span class="nav-icon">🔬</span> Analyze growth</a>
-    <a href="#history-section" class="nav-item" onclick="showSection('history-section')"><span class="nav-icon">📊</span> History</a>
+    <a href="#" class="nav-item active" data-section="dashboard-section" onclick="showSection('dashboard-section', this); return false;"><span class="nav-icon">⊞</span> Dashboard</a>
+    <a href="#" class="nav-item" data-section="register-section" onclick="showSection('register-section', this); return false;"><span class="nav-icon">📸</span> Register image</a>
+    <a href="#" class="nav-item" data-section="analyze-section" onclick="showSection('analyze-section', this); return false;"><span class="nav-icon">🔬</span> Analyze growth</a>
+    <a href="#" class="nav-item" data-section="history-section" onclick="showSection('history-section', this); return false;"><span class="nav-icon">📊</span> History</a>
 
     <div class="nav-spacer"></div>
     <a href="login.html" class="nav-item" onclick="logout()"><span class="nav-icon">→</span> Sign out</a>
@@ -111,32 +113,33 @@
   <!-- Main -->
   <div class="main">
     <div class="topbar">
-      <h2>Dashboard</h2>
+      <h2 id="section-title">Dashboard</h2>
       <span id="today-date"></span>
     </div>
 
-    <!-- Metrics -->
-    <div class="metrics">
-      <div class="metric">
-        <p>Total scans</p>
-        <h3 id="total-scans">0</h3>
-        <small>Images uploaded</small>
+    <section id="dashboard-section" class="content-section active">
+      <!-- Metrics -->
+      <div class="metrics">
+        <div class="metric">
+          <p>Total scans</p>
+          <h3 id="total-scans">0</h3>
+          <small>Images uploaded</small>
+        </div>
+        <div class="metric">
+          <p>Latest growth</p>
+          <h3 id="latest-growth">—</h3>
+          <small>vs previous scan</small>
+        </div>
+        <div class="metric">
+          <p>Last analysis</p>
+          <h3 id="last-analysis">—</h3>
+          <small>Days ago</small>
+        </div>
       </div>
-      <div class="metric">
-        <p>Latest growth</p>
-        <h3 id="latest-growth">—</h3>
-        <small>vs previous scan</small>
-      </div>
-      <div class="metric">
-        <p>Last analysis</p>
-        <h3 id="last-analysis">—</h3>
-        <small>Days ago</small>
-      </div>
-    </div>
+    </section>
 
     <!-- Register Section -->
-    <section id="register-section">
-    <div id="register-section">
+    <section id="register-section" class="content-section">
       <div class="card" style="margin-bottom:1.5rem">
         <div class="card-title"> Register first image</div>
         <div class="upload-label">Your head photo</div>
@@ -157,11 +160,10 @@
           Save first image
         </button>
       </div>
-    </div>
     </section>
 
     <!-- Analyze Section -->
-    <div id="analyze-section">
+    <section id="analyze-section" class="content-section">
       <div class="grid-2">
         <div class="card">
           <div class="card-title">📷 Before</div>
@@ -194,45 +196,47 @@
       <button class="btn-analyze" onclick="analyzeHair()" id="ana-btn" style="margin-bottom:1.5rem">
         🔬 Run hair growth analysis
       </button>
-    </div>
 
-    <!-- Result -->
-    <div class="result-card">
-      <div class="card-title">📊 Analysis result</div>
-      <div class="result-empty" id="result-empty">
-        <div class="icon">🔍</div>
-        <p>No analysis yet — upload images and run analysis</p>
-      </div>
-      <div class="result-content" id="result-content">
-        <div class="result-header">
-          <h3>Hair growth analysis</h3>
-          <span class="growth-badge" id="growth-badge">Analyzing...</span>
+      <!-- Result -->
+      <div class="result-card">
+        <div class="card-title">📊 Analysis result</div>
+        <div class="result-empty" id="result-empty">
+          <div class="icon">🔍</div>
+          <p>No analysis yet — upload images and run analysis</p>
         </div>
-        <div class="confidence-bar">
-          <p>Detection confidence</p>
-          <div class="bar-bg"><div class="bar-fill" id="conf-bar" style="width:0%"></div></div>
-        </div>
-        <div class="images-compare" id="compare-images" style="display:none">
-          <div class="img-box">
-            <p>Before</p>
-            <img id="result-before">
+        <div class="result-content" id="result-content">
+          <div class="result-header">
+            <h3>Hair growth analysis</h3>
+            <span class="growth-badge" id="growth-badge">Analyzing...</span>
           </div>
-          <div class="img-box">
-            <p>After</p>
-            <img id="result-after">
+          <div class="confidence-bar">
+            <p>Detection confidence</p>
+            <div class="bar-bg"><div class="bar-fill" id="conf-bar" style="width:0%"></div></div>
           </div>
+          <div class="images-compare" id="compare-images" style="display:none">
+            <div class="img-box">
+              <p>Before</p>
+              <img id="result-before">
+            </div>
+            <div class="img-box">
+              <p>After</p>
+              <img id="result-after">
+            </div>
+          </div>
+          <p class="analysis-text" id="analysis-text" style="margin-top:1rem"></p>
         </div>
-        <p class="analysis-text" id="analysis-text" style="margin-top:1rem"></p>
       </div>
-    </div>
+    </section>
 
     <!-- History -->
-    <div class="history-card">
-      <div class="card-title">🕐 Analysis history</div>
-      <div id="history-list">
-        <div style="text-align:center;padding:1.5rem;font-size:13px;color:#bbb">No history yet</div>
+    <section id="history-section" class="content-section">
+      <div class="history-card">
+        <div class="card-title">🕐 Analysis history</div>
+        <div id="history-list">
+          <div style="text-align:center;padding:1.5rem;font-size:13px;color:#bbb">No history yet</div>
+        </div>
       </div>
-    </div>
+    </section>
   </div>
 </div>
 
@@ -240,10 +244,10 @@
 const API = 'http://127.0.0.1:8000';
 let regFile = null;
 let afterFile = null;
-let history = JSON.parse(localStorage.getItem('hair_history') || '[]');
+let history = [];
 
 // Init
-window.onload = () => {
+window.onload = async () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   if (!user.name) { window.location.href = 'login.html'; return; }
 
@@ -252,10 +256,70 @@ window.onload = () => {
   const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('user-avatar').textContent = initials;
   document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
-  document.getElementById('total-scans').textContent = history.length;
-
-  renderHistory();
+  await loadHistory();
 };
+
+function getCurrentUserId(user) {
+  return user.user_id || user.id || (user.email ? user.email.split('@')[0] : null);
+}
+
+async function loadHistory() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userId = getCurrentUserId(user);
+  if (!userId) {
+    history = [];
+    document.getElementById('total-scans').textContent = '0';
+    renderHistory();
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/history/${encodeURIComponent(userId)}`);
+    const data = await res.json();
+
+    if (res.ok) {
+      history = Array.isArray(data.history) ? data.history : [];
+      document.getElementById('total-scans').textContent = String(history.length);
+      renderHistory();
+    } else {
+      history = [];
+      document.getElementById('total-scans').textContent = '0';
+      renderHistory();
+      showToast(data.detail || 'Failed to load history!', 'error');
+    }
+  } catch (e) {
+    history = [];
+    document.getElementById('total-scans').textContent = '0';
+    renderHistory();
+    showToast('Cannot connect to API!', 'error');
+  }
+}
+
+async function saveHistoryItem(item) {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userId = getCurrentUserId(user);
+  if (!userId) return false;
+
+  const formData = new FormData();
+  formData.append('user_id', userId);
+  formData.append('type', item.type || 'analysis');
+  formData.append('date', item.date || new Date().toLocaleDateString());
+  if (item.confidence !== undefined && item.confidence !== null) {
+    formData.append('confidence', String(item.confidence));
+  }
+  if (item.summary) {
+    formData.append('summary', item.summary);
+  }
+
+  try {
+    const res = await fetch(`${API}/history`, { method: 'POST', body: formData });
+    if (!res.ok) return false;
+    await loadHistory();
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 function showToast(msg, type) {
   const t = document.getElementById('toast');
@@ -291,7 +355,8 @@ async function registerImage() {
   if (!user.email) { showToast('Login required!', 'error'); return; }
   if (!regFile) { showToast('Please upload a photo!', 'error'); return; }
 
-  const userId = user.email.split('@')[0];
+  const userId = getCurrentUserId(user);
+  if (!userId) { showToast('User id not found. Please login again!', 'error'); return; }
   const formData = new FormData();
   formData.append('user_id', userId);
   formData.append('file', regFile);
@@ -308,10 +373,12 @@ async function registerImage() {
       document.getElementById('before-placeholder').style.display = 'none';
       document.getElementById('before-img').src = URL.createObjectURL(regFile);
       document.getElementById('before-img').style.display = 'block';
-      history.push({ type:'register', date: new Date().toLocaleDateString(), confidence: data.confidence });
-      localStorage.setItem('hair_history', JSON.stringify(history));
-      document.getElementById('total-scans').textContent = history.length;
-      renderHistory();
+      await saveHistoryItem({
+        type: 'register',
+        date: new Date().toLocaleDateString(),
+        confidence: data.confidence,
+        summary: 'Head detected successfully'
+      });
     } else {
       showToast(data.detail || 'Failed!', 'error');
     }
@@ -328,7 +395,8 @@ async function analyzeHair() {
   if (!user.email) { showToast('Login required!', 'error'); return; }
   if (!afterFile) { showToast('Upload new photo!', 'error'); return; }
 
-  const userId = user.email.split('@')[0];
+  const userId = getCurrentUserId(user);
+  if (!userId) { showToast('User id not found. Please login again!', 'error'); return; }
   const formData = new FormData();
   formData.append('user_id', userId);
   formData.append('file', afterFile);
@@ -347,16 +415,13 @@ async function analyzeHair() {
       document.getElementById('analysis-text').textContent = data.hair_analysis;
       document.getElementById('conf-bar').style.width = `${Math.round(data.confidence * 100)}%`;
 
-      history.push({
+      await saveHistoryItem({
         type: 'analysis',
         date: new Date().toLocaleDateString(),
         confidence: data.confidence,
         summary: data.hair_analysis?.substring(0, 60) + '...'
       });
-      localStorage.setItem('hair_history', JSON.stringify(history));
-      document.getElementById('total-scans').textContent = history.length;
       document.getElementById('last-analysis').textContent = '0d';
-      renderHistory();
       showToast('Analysis complete! 🎉', 'success');
     } else {
       showToast(data.detail || 'Analysis failed!', 'error');
@@ -387,9 +452,21 @@ function renderHistory() {
   `).join('');
 }
 
-function showSection(id) {
+function showSection(id, navEl) {
+  document.querySelectorAll('.content-section').forEach(section => {
+    section.classList.toggle('active', section.id === id);
+  });
+
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  event.target.closest('.nav-item').classList.add('active');
+  if (navEl) navEl.classList.add('active');
+
+  const titles = {
+    'dashboard-section': 'Dashboard',
+    'register-section': 'Register image',
+    'analyze-section': 'Analyze growth',
+    'history-section': 'History'
+  };
+  document.getElementById('section-title').textContent = titles[id] || 'Dashboard';
 }
 
 function logout() {

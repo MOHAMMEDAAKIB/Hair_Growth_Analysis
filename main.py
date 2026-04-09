@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from auth.routes import router as auth_router
 from fastapi.responses import FileResponse
+from auth.database import supabase
 
 
 app = FastAPI(title="Hair Growth Analysis API 💇")
@@ -85,7 +86,7 @@ async def analyze_hair_growth(
             {"error": "Previous image இல்ல!"},
             status_code=404
         )
-
+        
     previous_path = str(images[-1])
 
     # Temp save
@@ -114,3 +115,59 @@ async def analyze_hair_growth(
         return JSONResponse({"error": result["error"]}, status_code=400)
 
     return JSONResponse(result["report"])
+
+
+@app.get("/history/{user_id}")
+async def get_user_history(user_id: str):
+    try:
+        result = (
+            supabase.table("history")
+            .select("id, user_id, type, date, confidence, summary, created_at")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return JSONResponse({"history": result.data or []})
+    except Exception as e:
+        error_text = str(e)
+        if "PGRST205" in error_text or "Could not find the table 'public.history'" in error_text:
+            return JSONResponse(
+                {"history": [], "detail": "History table is not created in Supabase yet."},
+                status_code=200
+            )
+        return JSONResponse(
+            {"detail": f"Failed to fetch history: {str(e)}"},
+            status_code=500
+        )
+
+
+@app.post("/history")
+async def save_user_history(
+    user_id: str = Form(...),
+    type: str = Form(...),
+    date: str = Form(...),
+    confidence: float = Form(None),
+    summary: str = Form(None)
+):
+    try:
+        payload = {
+            "user_id": user_id,
+            "type": type,
+            "date": date,
+            "confidence": confidence,
+            "summary": summary,
+        }
+
+        result = supabase.table("history").insert(payload).execute()
+        return JSONResponse({"status": "success", "history": result.data[0] if result.data else payload})
+    except Exception as e:
+        error_text = str(e)
+        if "PGRST205" in error_text or "Could not find the table 'public.history'" in error_text:
+            return JSONResponse(
+                {"detail": "History table is missing in Supabase. Create it before saving history."},
+                status_code=503
+            )
+        return JSONResponse(
+            {"detail": f"Failed to save history: {str(e)}"},
+            status_code=500
+        )
