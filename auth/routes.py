@@ -65,7 +65,9 @@ async def register(
         "status":  "success",
         "message": f"Welcome {name}! Registration complete ✅",
         "user_id": result.data[0]["id"],
-        "email":   email
+        "email":   email,
+        "face_path": face_result["face_path"],
+        "face_url": f"/{face_result['face_path'].replace(os.sep, '/')}"
     })
 
 # ── Login ──
@@ -119,7 +121,9 @@ async def login(
         "user_id":         user["id"],
         "email":           user["email"],
         "name":            user["name"],
-        "face_similarity": face_result["similarity"]
+        "face_similarity": face_result["similarity"],
+        "face_path":       user.get("face_path"),
+        "face_url":        f"/{user['face_path'].replace(os.sep, '/')}" if user.get("face_path") else None
     })
 
 # ── Get User ──

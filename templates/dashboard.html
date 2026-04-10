@@ -13,7 +13,9 @@
   .brand-icon { width: 36px; height: 36px; background: #e8f0fe; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
   .brand h1 { font-size: 14px; font-weight: 600; color: #1a1a1a; }
   .user-card { background: #f9f9f9; border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; }
-  .avatar { width: 36px; height: 36px; border-radius: 50%; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #1d4ed8; flex-shrink: 0; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: #dbeafe; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: #1d4ed8; flex-shrink: 0; overflow: hidden; }
+  .avatar.has-image { background: #e5e7eb; color: transparent; }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .user-card p { font-size: 13px; font-weight: 600; color: #1a1a1a; }
   .user-card span { font-size: 11px; color: #888; }
   .nav-label { font-size: 10px; color: #bbb; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; margin-top: 4px; }
@@ -107,7 +109,7 @@
     <a href="#" class="nav-item" data-section="history-section" onclick="showSection('history-section', this); return false;"><span class="nav-icon">📊</span> History</a>
 
     <div class="nav-spacer"></div>
-    <a href="login.html" class="nav-item" onclick="logout()"><span class="nav-icon">→</span> Sign out</a>
+    <a href="/" class="nav-item" onclick="logout(); return false;"><span class="nav-icon">→</span> Sign out</a>
   </div>
 
   <!-- Main -->
@@ -249,15 +251,57 @@ let history = [];
 // Init
 window.onload = async () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  if (!user.name) { window.location.href = 'login.html'; return; }
+  if (!user.name) { window.location.href = '/'; return; }
 
   document.getElementById('user-name').textContent = user.name;
   document.getElementById('user-email').textContent = user.email;
   const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('user-avatar').textContent = initials;
+  setUserAvatar(user, initials);
   document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
   await loadHistory();
 };
+
+function getAvatarUrl(user) {
+  const direct = user.face_url || user.profile_image || user.profileImage || user.avatar || user.avatar_url;
+  if (direct) {
+    if (direct.startsWith('http://') || direct.startsWith('https://')) return direct;
+    return `${API}/${direct.replace(/^\/+/, '')}`;
+  }
+
+  if (user.face_path) {
+    return `${API}/${String(user.face_path).replace(/^\/+/, '')}`;
+  }
+
+  const usernameFromEmail = user.email ? user.email.split('@')[0] : null;
+  if (usernameFromEmail) {
+    return `${API}/storage/faces/${encodeURIComponent(usernameFromEmail)}.jpg`;
+  }
+
+  return null;
+}
+
+function setUserAvatar(user, initials) {
+  const avatarEl = document.getElementById('user-avatar');
+  const avatarUrl = getAvatarUrl(user);
+  if (!avatarUrl) return;
+
+  const img = new Image();
+  img.alt = 'Profile image';
+
+  img.onload = () => {
+    avatarEl.innerHTML = '';
+    avatarEl.appendChild(img);
+    avatarEl.classList.add('has-image');
+  };
+
+  img.onerror = () => {
+    avatarEl.textContent = initials || 'U';
+    avatarEl.classList.remove('has-image');
+  };
+
+  img.src = avatarUrl;
+}
 
 function getCurrentUserId(user) {
   return user.user_id || user.id || (user.email ? user.email.split('@')[0] : null);
@@ -471,7 +515,7 @@ function showSection(id, navEl) {
 
 function logout() {
   localStorage.removeItem('user');
-  window.location.href = 'login.html';
+  window.location.href = '/';
 }
 </script>
 </body>
