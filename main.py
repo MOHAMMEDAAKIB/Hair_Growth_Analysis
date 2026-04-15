@@ -16,6 +16,8 @@ app.include_router(auth_router)
 
 # Serve saved images/files (e.g., profile face images) to frontend.
 app.mount("/storage", StaticFiles(directory="storage"), name="storage")
+# Serve dashboard UI assets (logos/icons) used by templates.
+app.mount("/ui/assets", StaticFiles(directory="templates/assats"), name="ui-assets")
 
 UPLOAD_TEMP = "temp_uploads"
 os.makedirs(UPLOAD_TEMP, exist_ok=True)
