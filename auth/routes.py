@@ -2,7 +2,7 @@ from fastapi import APIRouter, File, UploadFile, Form, HTTPException
 from fastapi.responses import JSONResponse
 from passlib.context import CryptContext
 from auth.database import supabase
-from auth.face_verify import save_face, verify_face
+from auth.face_verify import verify_face
 import shutil
 import os
 
@@ -18,8 +18,7 @@ os.makedirs(TEMP_DIR, exist_ok=True)
 async def register(
     name:     str        = Form(...),
     email:    str        = Form(...),
-    password: str        = Form(...),
-    face:     UploadFile = File(...)
+    password: str        = Form(...)
 ):
     # Email exists check
     existing = supabase.table("users")\
@@ -33,23 +32,6 @@ async def register(
             detail="Email already registered!"
         )
 
-    # Face temp save
-    temp_path = f"{TEMP_DIR}/reg_{face.filename}"
-    with open(temp_path, "wb") as f:
-        shutil.copyfileobj(face.file, f)
-
-    user_id = email.split("@")[0]
-
-    # Face save
-    face_result = save_face(user_id, temp_path)
-    os.remove(temp_path)
-
-    if not face_result["success"]:
-        raise HTTPException(
-            status_code=400,
-            detail=face_result["error"]
-        )
-
     # Password hash
     hashed_password = pwd_context.hash(password)
 
@@ -58,16 +40,15 @@ async def register(
         "name":      name,
         "email":     email,
         "password":  hashed_password,
-        "face_path": face_result["face_path"]
+        "face_path": None
     }).execute()
 
     return JSONResponse({
         "status":  "success",
-        "message": f"Welcome {name}! Registration complete ✅",
+        "message": "Step 1 complete. Upload first image to finish registration.",
         "user_id": result.data[0]["id"],
         "email":   email,
-        "face_path": face_result["face_path"],
-        "face_url": f"/{face_result['face_path'].replace(os.sep, '/')}"
+        "name": name
     })
 
 # ── Login ──

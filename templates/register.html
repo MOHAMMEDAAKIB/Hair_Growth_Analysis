@@ -135,6 +135,7 @@ const API = 'http://127.0.0.1:8000';
 const LAST_REGISTERED_FACE_KEY = 'lastRegisteredFaceUrl';
 let stream = null;
 let capturedBlob = null;
+let pendingUser = null;
 
 function showToast(msg, type) {
   const t = document.getElementById('toast');
@@ -216,20 +217,27 @@ function handleFileUpload(input) {
 }
 
 async function registerUser() {
+  if (!pendingUser) {
+    await registerStepOne();
+    return;
+  }
+
+  await completeRegistrationWithFirstImage();
+}
+
+async function registerStepOne() {
   const fname    = document.getElementById('fname').value.trim();
   const lname    = document.getElementById('lname').value.trim();
   const email    = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
 
   if (!fname || !email || !password) { showToast('All fields required!', 'error'); return; }
-  if (!capturedBlob) { showToast('Face photo required!', 'error'); return; }
   if (password.length < 8) { showToast('Password min 8 characters!', 'error'); return; }
 
   const formData = new FormData();
   formData.append('name', `${fname} ${lname}`);
   formData.append('email', email);
   formData.append('password', password);
-  formData.append('face', capturedBlob, 'face.jpg');
 
   document.getElementById('reg-btn').disabled = true;
   document.getElementById('loading').style.display = 'block';
@@ -239,12 +247,15 @@ async function registerUser() {
     const data = await res.json();
 
     if (res.ok) {
-      const savedFaceUrl = getImageUrlFromPath(data.face_url);
-      if (savedFaceUrl) {
-        localStorage.setItem(LAST_REGISTERED_FACE_KEY, savedFaceUrl);
-      }
-      showToast('Registration successful! ', 'success');
-      setTimeout(() => window.location.href = '/', 1500);
+      pendingUser = {
+        user_id: data.user_id,
+        email: data.email,
+        name: data.name || `${fname} ${lname}`
+      };
+      localStorage.setItem('pendingRegistrationUser', JSON.stringify(pendingUser));
+      showToast('Step 1 complete. Now upload first image.', 'success');
+      document.getElementById('status-text').textContent = 'Step 2: Upload first image to finish';
+      document.getElementById('reg-btn').textContent = 'Complete registration';
     } else {
       showToast(data.detail || 'Registration failed!', 'error');
     }
@@ -256,7 +267,55 @@ async function registerUser() {
   document.getElementById('loading').style.display = 'none';
 }
 
+async function completeRegistrationWithFirstImage() {
+  if (!capturedBlob) { showToast('First image required!', 'error'); return; }
+  if (!pendingUser?.user_id) { showToast('Step 1 not completed!', 'error'); return; }
+
+  const formData = new FormData();
+  formData.append('user_id', String(pendingUser.user_id));
+  formData.append('file', capturedBlob, 'first_image.jpg');
+
+  document.getElementById('reg-btn').disabled = true;
+  document.getElementById('loading').style.display = 'block';
+
+  try {
+    const res = await fetch(`${API}/register`, { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (res.ok) {
+      const savedFaceUrl = getImageUrlFromPath(data.latest_image_url || data.image_stored);
+      if (savedFaceUrl) {
+        localStorage.setItem(LAST_REGISTERED_FACE_KEY, savedFaceUrl);
+      }
+
+      localStorage.removeItem('pendingRegistrationUser');
+      pendingUser = null;
+      showToast('Registration successful! ', 'success');
+      setTimeout(() => window.location.href = '/', 1500);
+    } else {
+      showToast(data.error || data.detail || 'First image registration failed!', 'error');
+    }
+  } catch (e) {
+    showToast('Cannot connect to API!', 'error');
+  }
+
+  document.getElementById('reg-btn').disabled = false;
+  document.getElementById('loading').style.display = 'none';
+}
+
 window.addEventListener('DOMContentLoaded', restoreLastFacePreview);
+window.addEventListener('DOMContentLoaded', () => {
+  try {
+    const cachedPending = JSON.parse(localStorage.getItem('pendingRegistrationUser') || 'null');
+    if (cachedPending?.user_id) {
+      pendingUser = cachedPending;
+      document.getElementById('reg-btn').textContent = 'Complete registration';
+      document.getElementById('status-text').textContent = 'Step 2: Upload first image to finish';
+    }
+  } catch (e) {
+    localStorage.removeItem('pendingRegistrationUser');
+  }
+});
 </script>
 </body>
 </html>

@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from auth.routes import router as auth_router
 from fastapi.responses import FileResponse
 from auth.database import supabase
+from auth.face_verify import save_face
 
 
 app = FastAPI(title="Hair Growth Analysis API 💇")
@@ -25,6 +26,17 @@ os.makedirs(UPLOAD_TEMP, exist_ok=True)
 #@app.get("/")
 #def home():
 #    return FileResponse("index.html")
+
+@app.get("/img/{user_id}/")
+async def get_image(user_id: str):
+    #want to get last uplode image
+    user_folder = f"storage/users/{user_id}"
+    if not Path(user_folder).exists():
+        return JSONResponse({"error": "User இல்ல! முதல்ல register பண்ணுங்க"}, status_code=404)
+    images = sorted(Path(user_folder).glob("*.jpg"))
+    if not images:
+        return JSONResponse({"error": "Image இல்ல! முதல்ல register பண்ணுங்க"}, status_code=404)
+    return FileResponse(str(images[-1]))
 
 @app.get("/user/register")
 def register_page():
@@ -63,13 +75,45 @@ async def register_first_image(
         "error": None
     })
 
+    if result.get("error"):
+        os.remove(temp_path)
+        return JSONResponse({"error": result["error"]}, status_code=400)
+
+    # If this user has no face registered yet, use first uploaded image to create face profile.
+    user_row = (
+        supabase.table("users")
+        .select("id, email, face_path")
+        .eq("id", user_id)
+        .execute()
+    )
+
+    if user_row.data:
+        user_data = user_row.data[0]
+        if not user_data.get("face_path"):
+            email = user_data.get("email")
+            if not email:
+                os.remove(temp_path)
+                return JSONResponse({"error": "User email missing for face setup"}, status_code=400)
+
+            face_user_id = email.split("@")[0]
+            face_result = save_face(face_user_id, temp_path)
+            if not face_result.get("success"):
+                os.remove(temp_path)
+                return JSONResponse({"error": face_result.get("error", "Face setup failed")}, status_code=400)
+
+            supabase.table("users").update({
+                "face_path": face_result["face_path"]
+            }).eq("id", user_id).execute()
+
     # Temp file delete
     os.remove(temp_path)
 
-    if result.get("error"):
-        return JSONResponse({"error": result["error"]}, status_code=400)
+    report = result["report"]
+    latest_image = report.get("image_stored") or report.get("after_image")
+    if latest_image:
+        report["latest_image_url"] = f"/{latest_image.replace(os.sep, '/')}"
 
-    return JSONResponse(result["report"])
+    return JSONResponse(report)
 
 @app.post("/analyze")
 async def analyze_hair_growth(
