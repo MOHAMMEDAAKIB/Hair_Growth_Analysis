@@ -84,6 +84,78 @@
   .confidence-bar p { font-size: 11px; color: #888; margin-bottom: 4px; }
   .bar-bg { background: #f0f0f0; border-radius: 20px; height: 6px; }
   .bar-fill { background: #4f46e5; border-radius: 20px; height: 6px; transition: width 0.8s ease; }
+
+  /* Responsive behavior without changing visual design language */
+  .main { min-width: 0; }
+  .analysis-text { overflow-wrap: anywhere; }
+  img { max-width: 100%; }
+
+  @media (max-width: 1100px) {
+    .grid-2 { grid-template-columns: 1fr; }
+    .main { padding: 1.5rem; }
+  }
+
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 200px 1fr; }
+    .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .topbar { flex-direction: column; align-items: flex-start; gap: 6px; }
+  }
+
+  @media (max-width: 720px) {
+    body { overflow-x: hidden; }
+    .layout { grid-template-columns: 1fr; }
+    .sidebar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1000;
+      border-right: none;
+      border-top: 1px solid #eee;
+      border-bottom: none;
+      padding: 0.5rem;
+      background: #fff;
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .brand,
+    .user-card,
+    .nav-label,
+    .nav-spacer { display: none; }
+    .nav-item {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 6px;
+      margin-bottom: 0;
+      justify-content: center;
+      font-size: 0;
+      gap: 0;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+    .nav-icon { width: 16px; height: 16px; }
+    .nav-icon svg { width: 14px; height: 14px; }
+    .nav-spacer { display: none; }
+    .main { padding: 1rem 1rem calc(70px + env(safe-area-inset-bottom)); }
+    .card,
+    .metric,
+    .result-card,
+    .history-card { padding: 1rem; }
+    .images-compare { grid-template-columns: 1fr; }
+    .toast { top: 12px; right: 12px; left: 12px; }
+  }
+
+  @media (max-width: 520px) {
+    .metrics { grid-template-columns: 1fr; }
+    .metric h3 { font-size: 24px; }
+    .topbar h2 { font-size: 18px; }
+    .topbar span { font-size: 12px; }
+    .upload-zone { padding: 1.1rem; }
+    .preview-wrap img,
+    .img-box img { height: 120px; }
+  }
 </style>
 </head>
 <body>
