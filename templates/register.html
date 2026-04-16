@@ -59,10 +59,7 @@
 <div class="page">
   <div class="logo">
     <div class="logo-icon" aria-hidden="true">
-      <svg viewBox="0 0 24 24">
-        <path d="M12 4c2.2 0 4 1.8 4 4v2.5c0 1.5.7 2.9 1.9 3.8l.6.5H5.5l.6-.5c1.2-.9 1.9-2.3 1.9-3.8V8c0-2.2 1.8-4 4-4Z"/>
-        <path d="M9 18c.4 1.2 1.5 2 3 2s2.6-.8 3-2"/>
-      </svg>
+        <img src="/ui/assets/hair_analysis_logo.png" alt="Brand" style="width:30px;height:30px;display:inline-block;">
     </div>
     <h1>Hair Growth Analysis</h1>
     <p>Create your account to get started</p>
@@ -151,18 +148,19 @@ function getImageUrlFromPath(path) {
   return `${API}/${String(path).replace(/^\/+/, '')}`;
 }
 
-function restoreLastFacePreview() {
-  const savedUrl = localStorage.getItem(LAST_REGISTERED_FACE_KEY);
-  if (!savedUrl) return;
 
-  const img = document.getElementById('preview-img');
-  img.src = savedUrl;
-  img.style.display = 'block';
-  document.getElementById('cam-placeholder').style.display = 'none';
-  document.getElementById('reg-video').style.display = 'none';
-  document.getElementById('status-dot').className = 'status-dot captured';
-  document.getElementById('status-text').textContent = 'Last saved image loaded';
-}
+//function restoreLastFacePreview() {
+//  const savedUrl = localStorage.getItem(LAST_REGISTERED_FACE_KEY);
+//    if (!savedUrl) return;
+
+//  const img = document.getElementById('preview-img');
+// img.src = savedUrl;
+//  img.style.display = 'block';
+//  document.getElementById('cam-placeholder').style.display = 'none';
+//  document.getElementById('reg-video').style.display = 'none';
+//  document.getElementById('status-dot').className = 'status-dot captured';
+//  document.getElementById('status-text').textContent = 'Last saved image loaded';
+//} 
 
 async function startCamera() {
   try {
@@ -303,7 +301,6 @@ async function completeRegistrationWithFirstImage() {
   document.getElementById('loading').style.display = 'none';
 }
 
-window.addEventListener('DOMContentLoaded', restoreLastFacePreview);
 window.addEventListener('DOMContentLoaded', () => {
   try {
     const cachedPending = JSON.parse(localStorage.getItem('pendingRegistrationUser') || 'null');
