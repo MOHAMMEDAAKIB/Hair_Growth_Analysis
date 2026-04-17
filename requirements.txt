@@ -9,3 +9,6 @@ pillow
 python-multipart
 python-dotenv
 groq
+boto3
+supabase
+setuptools<81

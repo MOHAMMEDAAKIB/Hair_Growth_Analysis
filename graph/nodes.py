@@ -5,6 +5,7 @@ from pathlib import Path
 import base64
 from groq import Groq
 from dotenv import load_dotenv
+from utils.s3_storage import s3_storage
 
 load_dotenv()
 
@@ -50,17 +51,29 @@ def crop_head(state):
 
     head_crop = img[y1:y2, x1:x2]
 
-    user_folder = f"storage/users/{state['user_id']}"
-    os.makedirs(user_folder, exist_ok=True)
-
-    existing = list(Path(user_folder).glob("*.jpg"))
-    count = len(existing) + 1
-    crop_path = f"{user_folder}/image_{count}.jpg"
-
-    cv2.imwrite(crop_path, head_crop)
-    print(f"💾 Saved: {crop_path}")
-
-    return {"head_crop_path": crop_path}
+    # Save temporarily to disk
+    os.makedirs("temp_uploads", exist_ok=True)
+    temp_crop_path = f"temp_uploads/crop_{state['user_id']}.jpg"
+    cv2.imwrite(temp_crop_path, head_crop)
+    
+    # Get count from S3
+    list_result = s3_storage.list_user_images(state["user_id"])
+    count = len(list_result.get("images", [])) + 1
+    
+    # Upload to S3
+    s3_path = f"users/{state['user_id']}/image_{count}.jpg"
+    upload_result = s3_storage.upload_image(temp_crop_path, s3_path)
+    
+    # Clean up temp file
+    os.remove(temp_crop_path)
+    
+    if not upload_result["success"]:
+        return {"error": f"Failed to upload to S3: {upload_result.get('error')}"}
+    
+    return {
+        "head_crop_path": upload_result["s3_path"],
+        "head_crop_url": upload_result["s3_url"]
+    }
 
 # ── Node 3: Analyze Hair ──
 def analyze_hair(state):
@@ -69,9 +82,19 @@ def analyze_hair(state):
     if state["is_first_image"]:
         return {"analysis_result": "First image stored successfully!"}
 
-    def to_base64(path):
-        with open(path, "rb") as f:
-            return base64.standard_b64encode(f.read()).decode("utf-8")
+    def to_base64(s3_path):
+        # Download from S3 temporarily
+        download_result = s3_storage.download_image(s3_path)
+        if not download_result["success"]:
+            raise Exception(f"Failed to download {s3_path}: {download_result.get('error')}")
+        
+        local_path = download_result["local_path"]
+        with open(local_path, "rb") as f:
+            b64 = base64.standard_b64encode(f.read()).decode("utf-8")
+        
+        # Clean up
+        os.remove(local_path)
+        return b64
 
     before_b64 = to_base64(state["previous_image_path"])
     after_b64  = to_base64(state["head_crop_path"])
@@ -126,6 +149,7 @@ def generate_report(state):
             "message": "First image registered!",
             "user_id": state["user_id"],
             "image_stored": state["head_crop_path"],
+            "image_url": state.get("head_crop_url", ""),
             "confidence": state["confidence"]
         }
     else:
@@ -135,6 +159,7 @@ def generate_report(state):
             "confidence": state["confidence"],
             "before_image": state["previous_image_path"],
             "after_image": state["head_crop_path"],
+            "after_image_url": state.get("head_crop_url", ""),
             "hair_analysis": state["analysis_result"]
         }
 

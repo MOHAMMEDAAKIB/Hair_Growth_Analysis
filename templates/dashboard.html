@@ -334,30 +334,52 @@ window.onload = async () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   if (!user.name) { window.location.href = '/'; return; }
 
-  document.getElementById('user-name').textContent = user.name;
-  document.getElementById('user-email').textContent = user.email;
-  const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
+  const syncedUser = await syncUserProfile(user);
+
+  document.getElementById('user-name').textContent = syncedUser.name;
+  document.getElementById('user-email').textContent = syncedUser.email;
+  const initials = syncedUser.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2);
   document.getElementById('user-avatar').textContent = initials;
-  setUserAvatar(user, initials);
+  setUserAvatar(syncedUser, initials);
   document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
   await loadHistory();
   await refreshBeforeImageFromServer();
 };
 
+async function syncUserProfile(user) {
+  if (!user?.email) return user || {};
+  try {
+    const res = await fetch(`${API}/auth/user/${encodeURIComponent(user.email)}`);
+    if (!res.ok) return user;
+    const profile = await res.json();
+    const merged = { ...user, ...profile };
+    localStorage.setItem('user', JSON.stringify(merged));
+    return merged;
+  } catch (e) {
+    return user;
+  }
+}
+
 function getAvatarUrl(user) {
   const direct = user.face_url || user.profile_image || user.profileImage || user.avatar || user.avatar_url;
   if (direct) {
     if (direct.startsWith('http://') || direct.startsWith('https://')) return direct;
+    if (direct.startsWith('faces/') || direct.startsWith('storage/faces/')) {
+      if (user.email) return `${API}/auth/face-image/${encodeURIComponent(user.email)}`;
+    }
     return `${API}/${direct.replace(/^\/+/, '')}`;
   }
 
   if (user.face_path) {
-    return `${API}/${String(user.face_path).replace(/^\/+/, '')}`;
+    const fp = String(user.face_path).replace(/^\/+/, '');
+    if (fp.startsWith('faces/') || fp.startsWith('storage/faces/')) {
+      if (user.email) return `${API}/auth/face-image/${encodeURIComponent(user.email)}`;
+    }
+    return `${API}/${fp}`;
   }
 
-  const usernameFromEmail = user.email ? user.email.split('@')[0] : null;
-  if (usernameFromEmail) {
-    return `${API}/storage/faces/${encodeURIComponent(usernameFromEmail)}.jpg`;
+  if (user.email) {
+    return `${API}/auth/face-image/${encodeURIComponent(user.email)}`;
   }
 
   return null;
@@ -435,22 +457,23 @@ async function refreshBeforeImageFromServer() {
   const userId = getCurrentUserId(user);
   if (!userId) return;
 
-  const latestUrl = `${API}/img/${encodeURIComponent(userId)}/?t=${Date.now()}`;
-  const testImage = new Image();
+  try {
+    const res = await fetch(`${API}/img/${encodeURIComponent(userId)}/?t=${Date.now()}`);
+    const data = await res.json();
 
-  testImage.onload = () => {
-    setRegisteredPreview(latestUrl);
-    cacheRegisteredPreview(userId, latestUrl);
-  };
+    if (res.ok && data.image_url) {
+      setRegisteredPreview(data.image_url);
+      cacheRegisteredPreview(userId, data.image_url);
+      return;
+    }
+  } catch (e) {
+    // Fallback to placeholder below.
+  }
 
-  testImage.onerror = () => {
-    const placeholder = document.getElementById('before-placeholder');
-    const preview = document.getElementById('before-img');
-    if (preview) preview.style.display = 'none';
-    if (placeholder) placeholder.style.display = 'flex';
-  };
-
-  testImage.src = latestUrl;
+  const placeholder = document.getElementById('before-placeholder');
+  const preview = document.getElementById('before-img');
+  if (preview) preview.style.display = 'none';
+  if (placeholder) placeholder.style.display = 'flex';
 }
 
 async function loadHistory() {
@@ -560,7 +583,7 @@ async function registerImage() {
 
     if (res.ok) {
       showToast('First image saved! ✓', 'success');
-      const savedImageUrl = getImageUrlFromPath(data.image_stored);
+      const savedImageUrl = data.image_url || getImageUrlFromPath(data.image_stored);
       if (savedImageUrl) {
         setRegisteredPreview(savedImageUrl);
         cacheRegisteredPreview(userId, savedImageUrl);
@@ -608,7 +631,7 @@ async function analyzeHair() {
       document.getElementById('analysis-text').textContent = data.hair_analysis;
       document.getElementById('conf-bar').style.width = `${Math.round(data.confidence * 100)}%`;
 
-      const latestAfterUrl = getImageUrlFromPath(data.after_image || data.latest_image_url);
+      const latestAfterUrl = data.after_image_url || getImageUrlFromPath(data.after_image || data.latest_image_url);
       if (latestAfterUrl) {
         setRegisteredPreview(latestAfterUrl);
         cacheRegisteredPreview(userId, latestAfterUrl);

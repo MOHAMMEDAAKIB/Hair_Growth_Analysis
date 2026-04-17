@@ -93,7 +93,7 @@
       <label>Face verification</label>
       <div class="face-box">
         <div class="cam-area" id="cam-area">
-          <video id="reg-video" autoplay playsinline></video>
+          <video id="reg-video" autoplay playsinline muted></video>
           <canvas id="reg-canvas"></canvas>
           <img id="preview-img" class="preview-img">
           <div class="cam-placeholder" id="cam-placeholder">
@@ -134,6 +134,28 @@ let stream = null;
 let capturedBlob = null;
 let pendingUser = null;
 
+function stopRegisterCamera() {
+  const video = document.getElementById('reg-video');
+  if (video) {
+    video.pause();
+    video.srcObject = null;
+  }
+  if (stream) {
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+  }
+}
+
+async function safePlay(video) {
+  try {
+    await video.play();
+  } catch (e) {
+    if (e?.name !== 'AbortError') {
+      throw e;
+    }
+  }
+}
+
 function showToast(msg, type) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -164,9 +186,11 @@ function getImageUrlFromPath(path) {
 
 async function startCamera() {
   try {
+    stopRegisterCamera();
     stream = await navigator.mediaDevices.getUserMedia({ video: true });
     const video = document.getElementById('reg-video');
     video.srcObject = stream;
+    await safePlay(video);
     video.style.display = 'block';
     document.getElementById('cam-placeholder').style.display = 'none';
     document.getElementById('preview-img').style.display = 'none';
@@ -193,7 +217,7 @@ function capturePhoto() {
     video.style.display = 'none';
     document.getElementById('status-dot').className = 'status-dot captured';
     document.getElementById('status-text').textContent = 'Photo captured ✓';
-    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    stopRegisterCamera();
   }, 'image/jpeg');
 }
 
@@ -204,6 +228,7 @@ function uploadPhoto() {
 function handleFileUpload(input) {
   const file = input.files[0];
   if (!file) return;
+  stopRegisterCamera();
   capturedBlob = file;
   const img = document.getElementById('preview-img');
   img.src = URL.createObjectURL(file);
@@ -313,6 +338,8 @@ window.addEventListener('DOMContentLoaded', () => {
     localStorage.removeItem('pendingRegistrationUser');
   }
 });
+
+window.addEventListener('beforeunload', stopRegisterCamera);
 </script>
 </body>
 </html>
