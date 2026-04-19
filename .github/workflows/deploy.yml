@@ -1,0 +1,83 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  # ── CI: run on every push and PR ──────────────────────────────────────────
+  ci:
+    name: Lint & Smoke Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Smoke import check
+        run: |
+          python -c "import fastapi; import uvicorn; print('Core imports OK')"
+
+      - name: Run tests (if any)
+        run: |
+          if [ -d "tests" ]; then
+            pip install pytest
+            pytest tests/ -v --tb=short
+          else
+            echo "No tests directory found — skipping"
+          fi
+
+  # ── CD: deploy only on push to main (not on PRs) ──────────────────────────
+  deploy:
+    name: Deploy to Oracle VM
+    runs-on: ubuntu-latest
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script_stop: true
+          command_timeout: 20m
+          script: |
+            set -e
+
+            echo "==> Pulling latest code"
+            cd /opt/hair_ai_pro
+            git fetch origin main
+            git pull origin main
+
+            echo "==> Activating virtual environment"
+            source venv/bin/activate
+
+            echo "==> Installing/updating dependencies"
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            echo "==> Restarting application service"
+            sudo -n systemctl restart hair-ai-pro
+
+            echo "==> Verifying service is running"
+            sudo -n systemctl is-active --quiet hair-ai-pro && echo "Service is UP" || (echo "Service FAILED" && sudo -n journalctl -u hair-ai-pro --no-pager -n 50 && exit 1)

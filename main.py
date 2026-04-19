@@ -1,15 +1,14 @@
 from fastapi import FastAPI, File, UploadFile, Form
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from pathlib import Path
 import shutil
 import os
 from graph.flow import hair_graph
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from auth.routes import router as auth_router
-from fastapi.responses import FileResponse
 from auth.database import supabase
 from auth.face_verify import save_face
+from utils.s3_storage import s3_storage
 
 
 app = FastAPI(title="Hair Growth Analysis API 💇")
@@ -29,14 +28,20 @@ os.makedirs(UPLOAD_TEMP, exist_ok=True)
 
 @app.get("/img/{user_id}/")
 async def get_image(user_id: str):
-    #want to get last uplode image
-    user_folder = f"storage/users/{user_id}"
-    if not Path(user_folder).exists():
-        return JSONResponse({"error": "User இல்ல! முதல்ல register பண்ணுங்க"}, status_code=404)
-    images = sorted(Path(user_folder).glob("*.jpg"))
-    if not images:
-        return JSONResponse({"error": "Image இல்ல! முதல்ல register பண்ணுங்க"}, status_code=404)
-    return FileResponse(str(images[-1]))
+    """Get the latest image for a user from S3"""
+    result = s3_storage.get_latest_user_image(user_id)
+    
+    if not result["success"]:
+        return JSONResponse(
+            {"error": "Image இல்ல! முதல்ல register பண்ணுங்க"},
+            status_code=404
+        )
+    
+    # Return S3 URL for the image
+    return JSONResponse({
+        "image_url": result.get("s3_url"),
+        "s3_path": result.get("s3_path")
+    })
 
 @app.get("/user/register")
 def register_page():
@@ -49,6 +54,22 @@ def login_page():
 @app.get("/ui/dashboard")
 def dashboard_page():
     return FileResponse("templates/dashboard.html")
+
+@app.get("/allImages/{user_id}/")
+async def get_all_images(user_id: str):
+    """Get all images for a user from S3"""
+    result = s3_storage.get_all_user_images(user_id)
+    
+    if not result["success"]:
+        return JSONResponse(
+            {"error": "Images இல்ல! முதல்ல register பண்ணுங்க"},
+            status_code=404
+        )
+    
+    # Return list of S3 URLs for the images
+    return JSONResponse({
+        "images": result.get("images", [])
+    })
 
 @app.post("/register")
 async def register_first_image(
@@ -109,10 +130,7 @@ async def register_first_image(
     os.remove(temp_path)
 
     report = result["report"]
-    latest_image = report.get("image_stored") or report.get("after_image")
-    if latest_image:
-        report["latest_image_url"] = f"/{latest_image.replace(os.sep, '/')}"
-
+    # S3 URL is already included in the report
     return JSONResponse(report)
 
 @app.post("/analyze")
@@ -120,30 +138,22 @@ async def analyze_hair_growth(
     user_id: str = Form(...),
     file: UploadFile = File(...)
 ):
-    # Previous image find
-    user_folder = f"storage/users/{user_id}"
-    if not Path(user_folder).exists():
-        return JSONResponse(
-            {"error": "User இல்ல! முதல்ல /register பண்ணுங்க"},
-            status_code=404
-        )
-
-    # Previous image
-    images = sorted(Path(user_folder).glob("*.jpg"))
-    if not images:
+    # Get previous image from S3
+    latest_image_result = s3_storage.get_latest_user_image(user_id)
+    if not latest_image_result["success"]:
         return JSONResponse(
             {"error": "Previous image இல்ல!"},
             status_code=404
         )
-        
-    previous_path = str(images[-1])
+    
+    previous_s3_path = latest_image_result["s3_path"]
 
-    # Temp save
+    # Temp save new image
     temp_path = f"{UPLOAD_TEMP}/{file.filename}"
     with open(temp_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    # Graph run
+    # Graph run - pass S3 path for previous image
     result = hair_graph.invoke({
         "user_id": user_id,
         "image_path": temp_path,
@@ -152,7 +162,7 @@ async def analyze_hair_growth(
         "bbox": None,
         "head_crop_path": None,
         "confidence": None,
-        "previous_image_path": previous_path,
+        "previous_image_path": previous_s3_path,
         "analysis_result": None,
         "report": None,
         "error": None
