@@ -55,6 +55,22 @@ def login_page():
 def dashboard_page():
     return FileResponse("templates/dashboard.html")
 
+@app.get("/allImages/{user_id}/")
+async def get_all_images(user_id: str):
+    """Get all images for a user from S3"""
+    result = s3_storage.get_all_user_images(user_id)
+    
+    if not result["success"]:
+        return JSONResponse(
+            {"error": "Images இல்ல! முதல்ல register பண்ணுங்க"},
+            status_code=404
+        )
+    
+    # Return list of S3 URLs for the images
+    return JSONResponse({
+        "images": result.get("images", [])
+    })
+
 @app.post("/register")
 async def register_first_image(
     user_id: str = Form(...),

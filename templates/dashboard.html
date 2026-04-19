@@ -229,6 +229,22 @@
           <small>Days ago</small>
         </div>
       </div>
+
+      <div class="card">
+        <div class="card-title">
+          <span class="nav-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M4 11 12 4l8 7"/>
+              <path d="M6 10.5V20h12v-9.5"/>
+              <path d="M10 20v-6h4v6"/>
+            </svg>
+          </span> Welcome back!
+        </div>
+        <div class = "card-content">
+          <div style="font-size:13px;color:#555;line-height:1.8" id= "userImageStatus">
+            
+          </div>
+      </div>
     </section>
 
     <!-- Register Section -->
@@ -384,7 +400,36 @@ window.onload = async () => {
   document.getElementById('today-date').textContent = new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
   await loadHistory();
   await refreshBeforeImageFromServer();
+  await showImages(syncedUser);
 };
+
+
+  async function showImages(user) {
+    try {
+      //console.log('Fetching images for user:', user);
+      const userId = getCurrentUserId(user);
+      const res = await fetch(`${API}/allImages/${encodeURIComponent(userId)}`);
+      const data = await res.json();
+      // Process the retrieved images
+      
+      //console.log('Retrieved images:', data.images);
+      document.getElementById('userImageStatus').innerHTML = `
+        <p style="margin-bottom:8px;font-size:14px;color:#333;font-weight:500">Your registered images:</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          ${data.images.map((img, index) => `
+            <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+              <img src="${getImageUrlFromPath(img.s3_url)}" alt="User image" style="width:100px;height:100px;object-fit:cover;border-radius:10px;border:1px solid #eee"> 
+              <p>${index + 1}</p>
+            </div>
+          `).join('')}
+
+        </div>
+      `;
+  
+    } catch (error) {
+      console.error('Error fetching images:', error);
+    }
+  }
 
 async function syncUserProfile(user) {
   if (!user?.email) return user || {};

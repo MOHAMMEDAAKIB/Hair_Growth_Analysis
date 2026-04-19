@@ -264,6 +264,25 @@ class S3Storage:
         except Exception as e:
             print(f"❌ S3 URL Error: {str(e)}")
             return {"success": False, "error": str(e)}
+        
+    def get_all_user_images(self, user_id: str) -> dict:
+        """
+        Get all images for a user with their S3 URLs
+        Args:
+            user_id: User ID
+        Returns:
+            dict with success status and list of images with S3 paths and URLs
+        """
+        list_result = self.list_user_images(user_id)
+        if not list_result.get("success"):
+            return list_result
+        
+        images_info = []
+        for s3_path in list_result.get("images", []):
+            s3_url = self.get_public_url(s3_path)
+            images_info.append({"s3_path": s3_path, "s3_url": s3_url})
+        
+        return {"success": True, "images": images_info}
 
 
 # Global instance
