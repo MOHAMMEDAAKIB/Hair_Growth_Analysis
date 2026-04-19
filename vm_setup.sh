@@ -16,6 +16,11 @@ echo "========================================"
 echo " Hair AI Pro — VM Setup"
 echo "========================================"
 
+if [[ "$REPO_URL" == *"YOUR_GITHUB_USERNAME"* ]] || [[ "$REPO_URL" == *"YOUR_REPO_NAME"* ]]; then
+    echo "ERROR: Update REPO_URL in vm_setup.sh before running."
+    exit 1
+fi
+
 # ── 1. System packages ────────────────────────────────────────────────────────
 echo "[1/7] Installing system packages..."
 sudo apt-get update -y
@@ -29,7 +34,12 @@ sudo apt-get install -y \
 echo "[2/7] Cloning repository to $APP_DIR..."
 sudo mkdir -p "$APP_DIR"
 sudo chown ubuntu:ubuntu "$APP_DIR"
-git clone "$REPO_URL" "$APP_DIR"
+if [ -d "$APP_DIR/.git" ]; then
+    git -C "$APP_DIR" fetch --all
+    git -C "$APP_DIR" reset --hard origin/main
+else
+    git clone "$REPO_URL" "$APP_DIR"
+fi
 cd "$APP_DIR"
 
 # ── 3. Python virtual environment ─────────────────────────────────────────────
@@ -44,21 +54,21 @@ echo "[4/7] Creating .env file..."
 cat > "$APP_DIR/.env" << 'EOF'
 # ── Supabase ──────────────────────────────────────────────
 SUPABASE_URL=your_supabase_url_here
-SUPABASE_KEY=your_supabase_anon_or_service_key_here
+SUPABASE_BUCKET_NAME=hair-ai-images
+SUPABASE_S3_ACCESS_KEY_ID=your_supabase_s3_access_key_id_here
+SUPABASE_S3_SECRET_ACCESS_KEY=your_supabase_s3_secret_access_key_here
 
-# ── AWS S3 ────────────────────────────────────────────────
-AWS_ACCESS_KEY_ID=your_aws_access_key_here
-AWS_SECRET_ACCESS_KEY=your_aws_secret_key_here
-AWS_S3_BUCKET=your_bucket_name_here
-AWS_REGION=your_region_here
+# Optional fallback keys (if you intentionally use AWS-style variable names)
+# AWS_ACCESS_KEY_ID=your_aws_access_key_here
+# AWS_SECRET_ACCESS_KEY=your_aws_secret_key_here
 
 # ── Other APIs ────────────────────────────────────────────
-# Add your other API keys below
-# SOME_API_KEY=value
+GROQ_API_KEY=your_groq_api_key_here
 
 # ── App settings ──────────────────────────────────────────
 ENVIRONMENT=production
 EOF
+chmod 600 "$APP_DIR/.env"
 echo "  !! IMPORTANT: Edit $APP_DIR/.env and fill in your real secrets before starting the service."
 
 # ── 5. Systemd service ────────────────────────────────────────────────────────
@@ -81,7 +91,7 @@ echo "[7/7] Opening firewall ports 80 and 443..."
 sudo iptables -I INPUT -p tcp --dport 80 -j ACCEPT
 sudo iptables -I INPUT -p tcp --dport 443 -j ACCEPT
 # Persist rules across reboots
-sudo apt-get install -y iptables-persistent
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent
 sudo netfilter-persistent save
 
 echo ""
@@ -93,6 +103,7 @@ echo "Next steps:"
 echo "  1. Edit $APP_DIR/.env with your real secrets"
 echo "  2. sudo systemctl start hair-ai-pro"
 echo "  3. sudo systemctl status hair-ai-pro"
-echo "  4. Update /etc/nginx/sites-available/hair-ai-pro — set your IP/domain in server_name"
-echo "  5. (Optional) Run: sudo certbot --nginx to get free HTTPS via Let's Encrypt"
+echo "  4. Update /etc/nginx/sites-available/hair-ai-pro with your domain in server_name"
+echo "  5. Ensure Oracle Cloud Security List/NSG allows inbound 80 and 443"
+echo "  6. (Optional) Run: sudo certbot --nginx to get free HTTPS via Let's Encrypt"
 echo ""
